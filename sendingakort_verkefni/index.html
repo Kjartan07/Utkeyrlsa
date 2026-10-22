@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="is">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0e1728" />
+  <title>Leið — Sendingastjórn</title>
+  <link rel="preconnect" href="https://tile.openstreetmap.org" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <header class="brand-bar">
+        <div class="brand-icon" aria-hidden="true">↗</div>
+        <div><div class="brand-name">LEIÐ<span class="brand-dot">.</span></div><div class="brand-subtitle">SENDINGASTJÓRN</div></div>
+        <div class="beta-pill">PRUFUÚTGÁFA</div>
+      </header>
+
+      <div class="sidebar-main">
+        <div class="eyebrow">YFIRLIT DAGSINS</div>
+        <h1>Þínar sendingar<span class="accent">.</span></h1>
+        <p class="intro">Skráðu áfangastaði, sjáðu þá á korti og raðaðu sendingunum eins og hentar þér.</p>
+
+        <div class="stats" aria-label="Tölfræði sendinga">
+          <div class="stat"><span class="stat-value" id="totalCount">0</span><span class="stat-label">Sendingar</span></div>
+          <div class="stat"><span class="stat-value" id="pendingCount">0</span><span class="stat-label">Óafhentar</span></div>
+          <div class="stat"><span class="stat-value" id="doneCount">0</span><span class="stat-label">Afhentar</span></div>
+        </div>
+
+        <section class="entry-panel" id="addSection" aria-labelledby="formTitle">
+          <div class="section-header"><h2 id="formTitle">Bæta við sendingu</h2><span class="section-symbol">+</span></div>
+          <form id="deliveryForm">
+            <label for="addressInput">Heimilisfang</label>
+            <input id="addressInput" name="address" type="text" placeholder="T.d. Laugavegur 20, Reykjavík" autocomplete="street-address" required maxlength="180" />
+            <label for="noteInput">Lýsing / athugasemd <span class="optional">(valfrjálst)</span></label>
+            <input id="noteInput" name="note" type="text" placeholder="T.d. Pakki á 2. hæð" maxlength="200" />
+            <button class="primary-btn" id="addButton" type="submit"><span aria-hidden="true">+</span> Skrá heimilisfang</button>
+          </form>
+          <p class="tip">Ábending: Skrifaðu götu, húsnúmer og bæjarfélag til að fá sem nákvæmasta staðsetningu.</p>
+        </section>
+
+        <div class="list-top">
+          <div><div class="eyebrow">ÁÆTLUÐ LEIÐ</div><h2>Sendingalistinn <span id="listCount" class="list-number">0</span></h2></div>
+          <button type="button" id="sortButton" class="subtle-btn" title="Raðar eftir loftlínufjarlægð, ekki akstursleið">↝ Raða</button>
+        </div>
+        <label class="check-row"><input id="hideDelivered" type="checkbox" /> Fela afhentar sendingar</label>
+        <p class="sort-hint">Dragðu sendingar til að breyta röð eða notaðu ↑ og ↓. „Raða“ notar nálægð, ekki umferð eða götur.</p>
+        <div id="deliveryList" class="delivery-list" aria-live="polite"></div>
+      </div>
+      <footer class="sidebar-footer"><button id="clearButton" class="text-danger" type="button">Hreinsa allar sendingar</button><span>Vistað í þessum vafra</span></footer>
+    </aside>
+
+    <main class="map-panel">
+      <div id="map" role="region" aria-label="Kort yfir sendingar á höfuðborgarsvæðinu"></div>
+      <div class="map-header">
+        <div class="map-heading"><span class="online-dot"></span><span>KORT YFIR SENDINGAR</span></div>
+        <div class="map-controls">
+          <button type="button" id="fitButton" class="map-button" title="Sjá alla staði">⌗ <span>Allir staðir</span></button>
+          <button type="button" id="startButton" class="map-button" title="Velja upphafsstað með því að smella á kort">◎ <span>Velja upphaf</span></button>
+          <button type="button" id="pinButton" class="map-button" title="Bæta sendingu beint á kort">⊕ <span>Setja pinna</span></button>
+        </div>
+      </div>
+      <div id="mapModeBanner" class="map-mode-banner" hidden>Smelltu á kortið til að velja staðsetningu. <button type="button" id="cancelModeButton">Hætta við</button></div>
+      <div class="map-footer-note"><span class="legend-dot orange"></span>Óafhent <span class="legend-dot green"></span>Afhent <span class="legend-dot blue"></span>Upphaf <span class="route-note">· Tengilína sýnir röð, ekki akstursleið</span></div>
+      <div class="notification" id="notification" role="status" aria-live="polite" hidden></div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="welcomeModal" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle" hidden>
+    <div class="modal-card">
+      <div class="modal-glyph">↗</div>
+      <div class="eyebrow">VELKOMIN(N) Í LEIÐ</div>
+      <h2 id="welcomeTitle">Viltu bæta heimilisfangi við listann?</h2>
+      <p>Byrjaðu á því að skrá fyrstu sendinguna. Hún birtist svo sjálfkrafa á kortinu.</p>
+      <div class="modal-actions"><button type="button" id="welcomeAdd" class="primary-btn">Já, bæta við heimilisfangi</button><button type="button" id="welcomeSkip" class="secondary-btn">Skoða kortið fyrst</button></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="pinModal" role="dialog" aria-modal="true" aria-labelledby="pinTitle" hidden>
+    <div class="modal-card compact">
+      <h2 id="pinTitle">Ný sending á korti</h2>
+      <p>Veldu lýsandi heiti fyrir pinnann sem þú valdir.</p>
+      <form id="pinForm">
+        <label for="pinLabelInput">Heiti / heimilisfang</label>
+        <input id="pinLabelInput" type="text" placeholder="T.d. Afhending við Skeifuna" maxlength="180" required />
+        <label for="pinNoteInput">Athugasemd (valfrjálst)</label>
+        <input id="pinNoteInput" type="text" maxlength="200" placeholder="T.d. Móttaka bakatil" />
+        <div class="modal-actions"><button type="submit" class="primary-btn">Vista sendingu</button><button type="button" id="pinCancel" class="secondary-btn">Hætta við</button></div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
